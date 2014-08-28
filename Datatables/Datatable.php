@@ -660,12 +660,12 @@ class Datatable
             // Go through each requested column, transforming the array as needed for DataTables
             foreach ($this->parameters as $index => $parameter) { //($i = 0 ; $i < count($this->parameters); $i++) {
                 // Results are already correctly formatted if this is the case...
-                if (!$this->associations[$i]['containsCollections']) {
+                if (!$this->associations[$index]['containsCollections']) {
                     continue;
                 }
 
                 $rowRef = &$item;
-                $fields = explode('.', $this->parameters[$i]);
+                $fields = explode('.', $this->parameters[$index]);
 
                 // Check for collection based entities and format the array as needed
                 while ($field = array_shift($fields)) {
