@@ -658,7 +658,7 @@ class Datatable
                 $item['DT_RowId'] = $item[$this->rootEntityIdentifier];
             }
             // Go through each requested column, transforming the array as needed for DataTables
-            for ($i = 0 ; $i < count($this->parameters); $i++) {
+            foreach ($this->parameters as $index => $parameter) { //($i = 0 ; $i < count($this->parameters); $i++) {
                 // Results are already correctly formatted if this is the case...
                 if (!$this->associations[$i]['containsCollections']) {
                     continue;
