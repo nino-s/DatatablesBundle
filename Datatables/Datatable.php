@@ -272,14 +272,19 @@ class Datatable
             $params = array();
             $associations = array();
             for ($i=0; $i < intval($this->request['iColumns']); $i++) {
-                $fields = explode('.', $this->request['mDataProp_' . $i]);
-                $params[] = $this->request['mDataProp_' . $i];
-                $associations[] = array('containsCollections' => false);
-
-                if (count($fields) > 1)
-                    $this->setRelatedEntityColumnInfo($associations[$i], $fields);
-                else
-                    $this->setSingleFieldColumnInfo($associations[$i], $fields[0]);
+                // if a function is used in the data property 
+                // it should not be considered
+                if( !preg_match('/^((function)|(\s*)|(^$))$/', $this->request['mDataProp_' . $i]) ) {
+                    $fields = explode('.', $this->request['mDataProp_' . $i]);
+                    $params[$i] = $this->request['mDataProp_' . $i];
+                    $associations[$i] = array('containsCollections' => false);
+                    
+                    if (count($fields) > 1) {
+                        $this->setRelatedEntityColumnInfo($associations[$i], $fields);
+                    } else {
+                        $this->setSingleFieldColumnInfo($associations[$i], $fields[0]);
+                    }
+                }
             }
             $this->parameters = $params;
             $this->associations = $associations;
@@ -458,10 +463,21 @@ class Datatable
         if (isset($this->request['iSortCol_0'])) {
             for ($i = 0; $i < intval($this->request['iSortingCols']); $i++) {
                 if ($this->request['bSortable_'.intval($this->request['iSortCol_'. $i])] == "true") {
-                    $qb->addOrderBy(
-                        $this->associations[$this->request['iSortCol_'.$i]]['fullName'],
-                        $this->request['sSortDir_'.$i]
-                    );
+                    // if sort col is not existent in associations
+                    // try to find one
+                    $sortCol = $this->request['iSortCol_'.$i];
+                    $index = $i;
+                    while ( $index >= 0 && !array_key_exists($sortCol, $this->associations) ) {
+                        $sortCol = $sortCol - $index;
+                        $index--;
+                    }
+                    
+                    if ( array_key_exists($sortCol, $this->associations) ) {
+                        $qb->addOrderBy(
+                            $this->associations[$sortCol]['fullName'],
+                            $this->request['sSortDir_'.$i]
+                        );
+                    }
                 }
             }
         }
@@ -476,18 +492,24 @@ class Datatable
     {
         // Global filtering
         if ($this->search != '') {
-            $orExpr = $qb->expr()->orX();
-            for ($i=0 ; $i < count($this->parameters); $i++) {
-                if (isset($this->request['bSearchable_'.$i]) && $this->request['bSearchable_'.$i] == "true") {
-                    $qbParam = "sSearch_global_{$this->associations[$i]['entityName']}_{$this->associations[$i]['fieldName']}";
-                    $orExpr->add($qb->expr()->like(
-                        $this->associations[$i]['fullName'],
-                        ":$qbParam"
-                    ));
-                    $qb->setParameter($qbParam, "%" . $this->request['sSearch'] . "%");
+            // search Text is splitted so each word can be searched
+            $searchArray = array_filter(explode(' ', $this->search));
+            $andExpr = $qb->expr()->andX();
+            foreach ($searchArray as $searchField) {
+                $orExpr = $qb->expr()->orX();
+                for ($i=0 ; $i < count($this->parameters); $i++) {
+                    if (isset($this->request['bSearchable_'.$i]) && $this->request['bSearchable_'.$i] == "true") {
+                        $qbParam = "sSearch_global_{$this->associations[$i]['entityName']}_{$this->associations[$i]['fieldName']}";
+                        $orExpr->add($qb->expr()->like(
+                            $this->associations[$i]['fullName'],
+                            ":$qbParam"
+                        ));
+                        $qb->setParameter($qbParam, "%" . $searchField . "%");
+                    }
                 }
+                $andExpr->add($orExpr);
             }
-            $qb->where($orExpr);
+            $qb->andWhere($andExpr);
         }
 
         // Individual column filtering
@@ -617,7 +639,14 @@ class Datatable
     {
         $output = array("aaData" => array());
 
-        $query = $this->qb->getQuery()->setHydrationMode(Query::HYDRATE_ARRAY);
+        // consider translations in database
+        $query = $this->qb->getQuery()
+                ->setHint(
+                    \Doctrine\ORM\Query::HINT_CUSTOM_OUTPUT_WALKER,
+                    'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker'
+                )
+                ->setHint(\Gedmo\Translatable\TranslatableListener::HINT_FALLBACK, true)  
+                ->setHydrationMode(Query::HYDRATE_ARRAY);
         $items = $this->useDoctrinePaginator ?
             new Paginator($query, $this->doesQueryContainCollections()) : $query->execute();
 
