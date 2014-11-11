@@ -466,7 +466,7 @@ class Datatable
                     // if sort col is not existent in associations
                     // try to find one
                     $sortCol = $this->request['iSortCol_'.$i];
-                    $index = $i;
+                    $index = $sortCol;
                     while ( $index >= 0 && !array_key_exists($sortCol, $this->associations) ) {
                         $sortCol = $sortCol - $index;
                         $index--;
@@ -497,11 +497,11 @@ class Datatable
             $andExpr = $qb->expr()->andX();
             foreach ($searchArray as $searchField) {
                 $orExpr = $qb->expr()->orX();
-                for ($i=0 ; $i < count($this->parameters); $i++) {
-                    if (isset($this->request['bSearchable_'.$i]) && $this->request['bSearchable_'.$i] == "true") {
-                        $qbParam = "sSearch_global_{$this->associations[$i]['entityName']}_{$this->associations[$i]['fieldName']}";
+                foreach (array_keys($this->parameters) as $key) {
+                    if (isset($this->request['bSearchable_'.$key]) && $this->request['bSearchable_'.$key] == "true") {
+                        $qbParam = "sSearch_global_{$this->associations[$key]['entityName']}_{$this->associations[$key]['fieldName']}";
                         $orExpr->add($qb->expr()->like(
-                            $this->associations[$i]['fullName'],
+                            $this->associations[$key]['fullName'],
                             ":$qbParam"
                         ));
                         $qb->setParameter($qbParam, "%" . $searchField . "%");
@@ -514,14 +514,14 @@ class Datatable
 
         // Individual column filtering
         $andExpr = $qb->expr()->andX();
-        for ($i=0 ; $i < count($this->parameters); $i++) {
-            if (isset($this->request['bSearchable_'.$i]) && $this->request['bSearchable_'.$i] == "true" && $this->request['sSearch_'.$i] != '') {
-                $qbParam = "sSearch_single_{$this->associations[$i]['entityName']}_{$this->associations[$i]['fieldName']}";
+        foreach (array_keys($this->parameters) as $key) {
+            if (isset($this->request['bSearchable_'.$key]) && $this->request['bSearchable_'.$key] == "true" && $this->request['sSearch_'.$key] != '') {
+                $qbParam = "sSearch_single_{$this->associations[$key]['entityName']}_{$this->associations[$key]['fieldName']}";
                 $andExpr->add($qb->expr()->like(
-                    $this->associations[$i]['fullName'],
+                    $this->associations[$key]['fullName'],
                     ":$qbParam"
                 ));
-                $qb->setParameter($qbParam, "%" . $this->request['sSearch_'.$i] . "%");
+                $qb->setParameter($qbParam, "%" . $this->request['sSearch_'.$key] . "%");
             }
         }
         if ($andExpr->count() > 0) {
