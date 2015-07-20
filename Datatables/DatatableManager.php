@@ -22,6 +22,11 @@ class DatatableManager
      */
     protected $useDoctrinePaginator;
 
+    /**
+     * @param DoctrineRegistry $doctrine
+     * @param ContainerInterface $container
+     * @param $useDoctrinePaginator
+     */
     public function __construct(DoctrineRegistry $doctrine, ContainerInterface $container, $useDoctrinePaginator)
     {
         $this->doctrine = $doctrine;
@@ -32,7 +37,7 @@ class DatatableManager
     /**
      * Given an entity class name or possible alias, convert it to the full class name
      *
-     * @param string The entity class name or alias
+     * @param $className string The entity class name or alias
      * @return string The entity class name
      */
     protected function getClassName($className) {
@@ -45,7 +50,7 @@ class DatatableManager
     }
 
     /**
-     * @param string An entity class name or alias 
+     * @param $class string An entity class name or alias
      * @return object Get a DataTable instance for the given entity
      */
     public function getDatatable($class)

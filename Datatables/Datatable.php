@@ -272,9 +272,9 @@ class Datatable
             $params = array();
             $associations = array();
             for ($i=0; $i < intval($this->request['iColumns']); $i++) {
-                // if a function is used in the data property 
+                // if a function or a number is used in the data property
                 // it should not be considered
-                if( !preg_match('/^((function)|(\s*)|(^$))$/', $this->request['mDataProp_' . $i]) ) {
+                if( !preg_match('/^(([\d]+)|(function)|(\s*)|(^$))$/', $this->request['mDataProp_' . $i]) ) {
                     $fields = explode('.', $this->request['mDataProp_' . $i]);
                     $params[$i] = $this->request['mDataProp_' . $i];
                     $associations[$i] = array('containsCollections' => false);

@@ -7,4 +7,12 @@ composer.lock
 .*.sw[a-z]
 *.un~
 Session.vim
+
+# System files
+.DS_Store
+
+# NetBeans-Settings
 /nbproject/
+
+# IDEs
+.idea/*
