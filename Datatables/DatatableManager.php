@@ -2,11 +2,11 @@
 
 namespace LanKit\DatatablesBundle\Datatables;
 
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Doctrine\Bundle\DoctrineBundle\Registry as DoctrineRegistry;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
-class DatatableManager
-{
+class DatatableManager {
+
     /**
      * @var object The Doctrine service
      */
@@ -27,8 +27,7 @@ class DatatableManager
      * @param ContainerInterface $container
      * @param $useDoctrinePaginator
      */
-    public function __construct(DoctrineRegistry $doctrine, ContainerInterface $container, $useDoctrinePaginator)
-    {
+    public function __construct(DoctrineRegistry $doctrine, ContainerInterface $container, $useDoctrinePaginator) {
         $this->doctrine = $doctrine;
         $this->container = $container;
         $this->useDoctrinePaginator = $useDoctrinePaginator;
@@ -42,10 +41,11 @@ class DatatableManager
      */
     protected function getClassName($className) {
         if (strpos($className, ':') !== false) {
-           list($namespaceAlias, $simpleClassName) = explode(':', $className);
-           $className = $this->doctrine->getManager()->getConfiguration()
-               ->getEntityNamespace($namespaceAlias) . '\\' . $simpleClassName;
+            list($namespaceAlias, $simpleClassName) = explode(':', $className);
+            $className = $this->doctrine->getManager()->getConfiguration()
+                    ->getEntityNamespace($namespaceAlias) . '\\' . $simpleClassName;
         }
+
         return $className;
     }
 
@@ -53,21 +53,18 @@ class DatatableManager
      * @param $class string An entity class name or alias
      * @return object Get a DataTable instance for the given entity
      */
-    public function getDatatable($class)
-    {
+    public function getDatatable($class) {
         $class = $this->getClassName($class);
 
-        $metadata = $this->doctrine->getManager()->getClassMetadata($class);
-        $repository = $this->doctrine->getRepository($class);
-
         $datatable = new Datatable(
-            $this->container->get('request')->query->all(),
+            array_merge($this->container->get('request_stack')->getCurrentRequest()->query->all(), $this->container->get('request_stack')->getCurrentRequest()->request->all()),
             $this->doctrine->getRepository($class),
             $this->doctrine->getManager()->getClassMetadata($class),
             $this->doctrine->getManager(),
             $this->container->get('lankit_datatables.serializer')
         );
-        return $datatable->useDoctrinePaginator($this->useDoctrinePaginator); 
+
+        return $datatable->useDoctrinePaginator($this->useDoctrinePaginator);
     }
 }
 
