@@ -11,13 +11,16 @@
         }
     ],
     "require": {
-        "symfony/framework-bundle": "2.7.*",
-        "gedmo/doctrine-extensions": "~2.4",
-        "doctrine/orm": "~2.2,>=2.2.3,<2.5",
-        "doctrine/doctrine-bundle": "~1.4"
+        "symfony/framework-bundle": "~2.3",
+        "doctrine/orm": "~2.4,>=2.4.5",
+        "doctrine/doctrine-bundle": "~1.2"
+    },
+    "require-dev": {
+        "gedmo/doctrine-extensions": "~2.4"
     },
     "suggest": {
-        "jms/serializer-bundle": "Advanced JSON encoding capabilities, recommended."
+        "jms/serializer-bundle": "Advanced JSON encoding capabilities, recommended.",
+        "gedmo/doctrine-extensions": "Translation of database columns"
     },
     "autoload": {
         "psr-0": { "LanKit\\DatatablesBundle": "" }
