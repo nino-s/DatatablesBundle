@@ -8,12 +8,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class DatatableManager {
 
     /**
-     * @var object The Doctrine service
+     * @var DoctrineRegistry The Doctrine service
      */
     protected $doctrine;
 
     /**
-     * @var object The Symfony2 container to grab the Request object from
+     * @var ContainerInterface The Symfony2 container to grab the Request object from
      */
     protected $container;
 

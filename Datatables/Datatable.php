@@ -641,12 +641,15 @@ class Datatable
 
         // consider translations in database
         $query = $this->qb->getQuery()
+            ->setHydrationMode(Query::HYDRATE_ARRAY);
+        if (class_exists("\\Gedmo\\Translatable\\TranslatableListener")) {
+            $query
                 ->setHint(
                     \Doctrine\ORM\Query::HINT_CUSTOM_OUTPUT_WALKER,
                     'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker'
                 )
-                ->setHint(\Gedmo\Translatable\TranslatableListener::HINT_FALLBACK, true)  
-                ->setHydrationMode(Query::HYDRATE_ARRAY);
+                ->setHint(\Gedmo\Translatable\TranslatableListener::HINT_FALLBACK, true);
+        }
         $items = $this->useDoctrinePaginator ?
             new Paginator($query, $this->doesQueryContainCollections()) : $query->execute();
 
