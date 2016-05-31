@@ -137,7 +137,7 @@ class Datatable
     /**
      * @var array Information relating to the specific columns requested
      */
-    protected $associations;
+    protected $associations = array();
 
     /**
      * @var array SQL joins used to construct the QueryBuilder query
@@ -287,7 +287,8 @@ class Datatable
                 }
             }
             $this->parameters = $params;
-            $this->associations = $associations;
+            // do not reindex new array, just add them
+            $this->associations = $associations + $this->associations;
         }
     }
 
