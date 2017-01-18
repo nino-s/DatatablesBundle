@@ -496,11 +496,11 @@ class Datatable
             // search Text is splitted so each word can be searched
             $searchArray = array_filter(explode(' ', $this->search));
             $andExpr = $qb->expr()->andX();
-            foreach ($searchArray as $searchField) {
+            foreach ($searchArray as $index => $searchField) {
                 $orExpr = $qb->expr()->orX();
                 foreach (array_keys($this->parameters) as $key) {
                     if (isset($this->request['bSearchable_'.$key]) && $this->request['bSearchable_'.$key] == "true") {
-                        $qbParam = "sSearch_global_{$this->associations[$key]['entityName']}_{$this->associations[$key]['fieldName']}";
+                        $qbParam = "sSearch_global_{$this->associations[$key]['entityName']}_{$this->associations[$key]['fieldName']}_{$index}";
                         $orExpr->add($qb->expr()->like(
                             $this->associations[$key]['fullName'],
                             ":$qbParam"
