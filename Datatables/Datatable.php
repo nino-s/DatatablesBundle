@@ -194,9 +194,16 @@ class Datatable
      */
     protected $datatable;
 
+    /**
+     * @var DatatablesModel model containing all input and output data
+     */
+    protected $datatablesModel;
+
     public function __construct(array $request, EntityRepository $repository, ClassMetadata $metadata, EntityManager $em, $serializer)
     {
         $this->em = $em;
+        $this->datatablesModel = new DatatablesModel($request);
+
         $this->request = $request;
         $this->repository = $repository;
         $this->metadata = $metadata;
@@ -206,10 +213,10 @@ class Datatable
         $this->defaultResultType = self::RESULT_RESPONSE;
         $this->setParameters();
         $this->qb = $em->createQueryBuilder();
-        $this->echo = $this->request['sEcho'];
-        $this->search = $this->request['sSearch'];
-        $this->offset = $this->request['iDisplayStart'];
-        $this->amount = $this->request['iDisplayLength'];
+        $this->echo = $this->datatablesModel->getDraw();
+        $this->search = $this->datatablesModel->getSearch()['value'];
+        $this->offset = $this->datatablesModel->getStart();
+        $this->amount = $this->datatablesModel->getLength();
 
         $identifiers = $this->metadata->getIdentifierFieldNames();
         $this->rootEntityIdentifier = array_shift($identifiers);
@@ -224,7 +231,8 @@ class Datatable
     }
 
     /**
-     * @param boolean Whether or not to add DT_RowId to each record
+     * @param boolean $useDtRowId Whether or not to add DT_RowId to each record
+     * @return Datatable
      */
     public function useDtRowId($useDtRowId)
     {
@@ -234,7 +242,8 @@ class Datatable
     }
 
     /**
-     * @param boolean Whether or not to add DT_RowClass to each record
+     * @param boolean $useDtRowClass Whether or not to add DT_RowClass to each record
+     * @return Datatable
      */
     public function useDtRowClass($useDtRowClass)
     {
@@ -244,7 +253,8 @@ class Datatable
     }
 
     /**
-     * @param string The class to use for DT_RowClass on each record
+     * @param string $dtRowClass The class to use for DT_RowClass on each record
+     * @return Datatable
      */
     public function setDtRowClass($dtRowClass)
     {
@@ -254,7 +264,8 @@ class Datatable
     }
 
     /**
-     * @param boolean Whether or not to use the Doctrine Paginator utility
+     * @param boolean $useDoctrinePaginator Whether or not to use the Doctrine Paginator utility
+     * @return Datatable
      */
     public function useDoctrinePaginator($useDoctrinePaginator)
     {
@@ -268,36 +279,35 @@ class Datatable
      */
     public function setParameters()
     {
-        if (is_numeric($this->request['iColumns'])) {
-            $params = array();
-            $associations = array();
-            for ($i=0; $i < intval($this->request['iColumns']); $i++) {
-                // if a function or a number is used in the data property
-                // it should not be considered
-                if( !preg_match('/^(([\d]+)|(function)|(\s*)|(^$))$/', $this->request['mDataProp_' . $i]) ) {
-                    $fields = explode('.', $this->request['mDataProp_' . $i]);
-                    $params[$i] = $this->request['mDataProp_' . $i];
-                    $associations[$i] = array('containsCollections' => false);
-                    
-                    if (count($fields) > 1) {
-                        $this->setRelatedEntityColumnInfo($associations[$i], $fields);
-                    } else {
-                        $this->setSingleFieldColumnInfo($associations[$i], $fields[0]);
-                    }
+        $params = array();
+        $associations = array();
+        foreach ($this->datatablesModel->getColumns() as $key => $data) {
+            // if a function or a number is used in the data property
+            // it should not be considered
+            if( !preg_match('/^(([\d]+)|(function)|(\s*)|(^$))$/', $data['data']) ) {
+                $fields = explode('.', $data['data']);
+                $params[$key] = $data['data'];
+                $associations[$key] = array('containsCollections' => false);
+
+                if (count($fields) > 1) {
+                    $this->setRelatedEntityColumnInfo($associations[$key], $fields);
+                } else {
+                    $this->setSingleFieldColumnInfo($associations[$key], $fields[0]);
                 }
             }
-            $this->parameters = $params;
-            // do not reindex new array, just add them
-            $this->associations = $associations + $this->associations;
         }
+
+        $this->parameters = $params;
+        // do not reindex new array, just add them
+        $this->associations = $associations + $this->associations;
     }
 
     /**
      * Parse a dotted-notation column format from the mData, and sets association
      * information
      *
-     * @param array Association information for a column (by reference)
-     * @param array The column fields from dotted notation
+     * @param array $association Association information for a column (by reference)
+     * @param array $fields The column fields from dotted notation
      */
     protected function setRelatedEntityColumnInfo(array &$association, array $fields) {
         $mdataName = implode('.', $fields);
@@ -355,8 +365,8 @@ class Datatable
     /**
      * Configures association information for a single field request from the main entity
      *
-     * @param array  The association information as a reference
-     * @param string The field name on the main entity
+     * @param array $association The association information as a reference
+     * @param string $fieldName The field name on the main entity
      */
     protected function setSingleFieldColumnInfo(array &$association, $fieldName) {
         $fieldName = Container::camelize($fieldName);
@@ -376,9 +386,10 @@ class Datatable
     /**
      * Based on association information and metadata, construct the join name
      *
-     * @param ClassMetadata Doctrine metadata for an association
-     * @param string The table name for the join
-     * @param string The entity name of the table
+     * @param ClassMetadata $metadata Doctrine metadata for an association
+     * @param string $tableName The table name for the join
+     * @param string $entityName The entity name of the table
+     * @return string
      */
     protected function getJoinName(ClassMetadata $metadata, $tableName, $entityName)
     {
@@ -395,7 +406,7 @@ class Datatable
     /**
      * Based on association information, construct the full name to refer to in queries
      *
-     * @param array Association information for the column
+     * @param array $associationInfo Association information for the column
      * @return string The full name to refer to this column as in QueryBuilder statements
      */
     protected function getFullName(array $associationInfo)
@@ -406,7 +417,8 @@ class Datatable
     /**
      * Set the default join type to use for associations. Defaults to JOIN_INNER
      *
-     * @param string The join type to use, should be of either constant: JOIN_INNER, JOIN_LEFT
+     * @param string $joinType The join type to use, should be of either constant: JOIN_INNER, JOIN_LEFT
+     * @return Datatable
      */
     public function setDefaultJoinType($joinType)
     {
@@ -420,8 +432,9 @@ class Datatable
     /**
      * Set the type of join for a specific column/parameter
      *
-     * @param string The column/parameter name
-     * @param string The join type to use, should be of either constant: JOIN_INNER, JOIN_LEFT
+     * @param string $column The column/parameter name
+     * @param string $joinType The join type to use, should be of either constant: JOIN_INNER, JOIN_LEFT
+     * @return Datatable
      */
     public function setJoinType($column, $joinType)
     {
@@ -433,7 +446,8 @@ class Datatable
     }
 
     /**
-     * @param boolean Whether to hide the filtered count if using prefilter callbacks
+     * @param boolean $hideFilteredCount Whether to hide the filtered count if using prefilter callbacks
+     * @return Datatable
      */
     public function hideFilteredCount($hideFilteredCount)
     {
@@ -445,7 +459,7 @@ class Datatable
     /**
      * Set the scope of the result set
      *
-     * @param QueryBuilder The Doctrine QueryBuilder object
+     * @param QueryBuilder $qb The Doctrine QueryBuilder object
      */
     public function setLimit(QueryBuilder $qb)
     {
@@ -457,28 +471,25 @@ class Datatable
     /**
      * Set any column ordering that has been requested
      *
-     * @param QueryBuilder The Doctrine QueryBuilder object
+     * @param QueryBuilder $qb The Doctrine QueryBuilder object
      */
     public function setOrderBy(QueryBuilder $qb)
     {
-        if (isset($this->request['iSortCol_0'])) {
-            for ($i = 0; $i < intval($this->request['iSortingCols']); $i++) {
-                if ($this->request['bSortable_'.intval($this->request['iSortCol_'. $i])] == "true") {
-                    // if sort col is not existent in associations
-                    // try to find one
-                    $sortCol = $this->request['iSortCol_'.$i];
-                    $index = $sortCol;
-                    while ( $index >= 0 && !array_key_exists($sortCol, $this->associations) ) {
-                        $sortCol = $sortCol - $index;
-                        $index--;
+        foreach ($this->datatablesModel->getOrder() as $key => $order) {
+            if ((bool)$this->datatablesModel->getColumns()[$order['column']]['orderable'] === true) {
+                // if sort col is not existent in associations
+                // try to find one
+                for ($index = $order['column']; $index < count($this->datatablesModel->getColumns()); $index++) {
+                    if ( array_key_exists($index, $this->associations) ) {
+                        break;
                     }
-                    
-                    if ( array_key_exists($sortCol, $this->associations) ) {
-                        $qb->addOrderBy(
-                            $this->associations[$sortCol]['fullName'],
-                            $this->request['sSortDir_'.$i]
-                        );
-                    }
+                }
+
+                if ( array_key_exists($index, $this->associations) ) {
+                    $qb->addOrderBy(
+                        $this->associations[$index]['fullName'],
+                        $order['dir']
+                    );
                 }
             }
         }
@@ -487,19 +498,19 @@ class Datatable
     /**
      * Configure the WHERE clause for the Doctrine QueryBuilder if any searches are specified
      *
-     * @param QueryBuilder The Doctrine QueryBuilder object
+     * @param QueryBuilder $qb The Doctrine QueryBuilder object
      */
     public function setWhere(QueryBuilder $qb)
     {
         // Global filtering
-        if ($this->search != '') {
+        if (!empty($this->search)) {
             // search Text is splitted so each word can be searched
             $searchArray = array_filter(explode(' ', $this->search));
             $andExpr = $qb->expr()->andX();
             foreach ($searchArray as $index => $searchField) {
                 $orExpr = $qb->expr()->orX();
                 foreach (array_keys($this->parameters) as $key) {
-                    if (isset($this->request['bSearchable_'.$key]) && $this->request['bSearchable_'.$key] == "true") {
+                    if ((bool)$this->datatablesModel->getColumns()[$key]['searchable'] === true) {
                         $qbParam = "sSearch_global_{$this->associations[$key]['entityName']}_{$this->associations[$key]['fieldName']}_{$index}";
                         $orExpr->add($qb->expr()->like(
                             $this->associations[$key]['fullName'],
@@ -516,13 +527,13 @@ class Datatable
         // Individual column filtering
         $andExpr = $qb->expr()->andX();
         foreach (array_keys($this->parameters) as $key) {
-            if (isset($this->request['bSearchable_'.$key]) && $this->request['bSearchable_'.$key] == "true" && $this->request['sSearch_'.$key] != '') {
+            if ((bool)$this->datatablesModel->getColumns()[$key]['searchable'] === true && !empty($this->datatablesModel->getColumns()[$key]['search']['value'])) {
                 $qbParam = "sSearch_single_{$this->associations[$key]['entityName']}_{$this->associations[$key]['fieldName']}";
                 $andExpr->add($qb->expr()->like(
                     $this->associations[$key]['fullName'],
                     ":$qbParam"
                 ));
-                $qb->setParameter($qbParam, "%" . $this->request['sSearch_'.$key] . "%");
+                $qb->setParameter($qbParam, "%" . $this->datatablesModel->getSearch()[$key]['search']['value'] . "%");
             }
         }
         if ($andExpr->count() > 0) {
@@ -539,7 +550,7 @@ class Datatable
 	/**
      * Adds a manual association
      * 
-     * @param type $name - the dotted notation like in mData of the field you need adding
+     * @param string $name - the dotted notation like in mData of the field you need adding
      */
     public function addManualAssociation($name) {
         $newAssociation = array('containsCollections' => false);
@@ -551,7 +562,7 @@ class Datatable
     /**
      * Configure joins for entity associations
      *
-     * @param QueryBuilder The Doctrine QueryBuilder object
+     * @param QueryBuilder $qb The Doctrine QueryBuilder object
      */
     public function setAssociations(QueryBuilder $qb)
     {
@@ -568,7 +579,7 @@ class Datatable
     /**
      * Configure the specific columns to select for the query
      *
-     * @param QueryBuilder The Doctrine QueryBuilder object
+     * @param QueryBuilder $qb The Doctrine QueryBuilder object
      */
     public function setSelect(QueryBuilder $qb)
     {
@@ -626,7 +637,7 @@ class Datatable
      * Check if an array is associative or not.
      *
      * @link http://stackoverflow.com/questions/173400/php-arrays-a-good-way-to-check-if-an-array-is-associative-or-numeric
-     * @param array An arrray to check
+     * @param array $array An arrray to check
      * @return bool true if associative
      */
     protected function isAssocArray(array $array) {
@@ -638,15 +649,13 @@ class Datatable
      */
     public function executeSearch()
     {
-        $output = array("aaData" => array());
-
         // consider translations in database
         $query = $this->qb->getQuery()
             ->setHydrationMode(Query::HYDRATE_ARRAY);
         if (defined("\\Gedmo\\Translatable\\TranslatableListener::HINT_FALLBACK")) {
             $query
                 ->setHint(
-                    \Doctrine\ORM\Query::HINT_CUSTOM_OUTPUT_WALKER,
+                    Query::HINT_CUSTOM_OUTPUT_WALKER,
                     'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker'
                 )
                 ->setHint(constant("\\Gedmo\\Translatable\\TranslatableListener::HINT_FALLBACK"), true);
@@ -654,6 +663,7 @@ class Datatable
         $items = $this->useDoctrinePaginator ?
             new Paginator($query, $this->doesQueryContainCollections()) : $query->execute();
 
+        $data = [];
         foreach ($items as $item) {
             if ($this->useDtRowClass && !is_null($this->dtRowClass)) {
                 $item['DT_RowClass'] = $this->dtRowClass;
@@ -684,17 +694,10 @@ class Datatable
                     }
                 }
             }
-            $output['aaData'][] = $item;
+            $data[] = $item;
         }
 
-        $outputHeader = array(
-            "sEcho" => (int) $this->echo,
-            "iTotalRecords" => $this->getCountAllResults(),
-            "iTotalDisplayRecords" => $this->getCountFilteredResults()
-        );
-
-        $this->datatable = array_merge($outputHeader, $output);
-
+        $this->datatable = $this->datatablesModel->getOutputData($data, (int)$this->echo, $this->getCountAllResults(), $this->getCountFilteredResults());
         return $this;
     }
 
@@ -714,7 +717,8 @@ class Datatable
     /**
      * Set the default result type to use when calling getSearchResults
      *
-     * @param string The result type to use, should be one of: RESULT_JSON, RESULT_ARRAY, RESULT_RESPONSE
+     * @param string $resultType The result type to use, should be one of: RESULT_JSON, RESULT_ARRAY, RESULT_RESPONSE
+     * @return Datatable
      */
     public function setDefaultResultType($resultType)
     {
@@ -728,7 +732,7 @@ class Datatable
     /**
      * Creates and executes the DataTables search, returns data in the requested format
      *
-     * @param string The result type to use, should be one of: RESULT_JSON, RESULT_ARRAY, RESULT_RESPONSE
+     * @param string $resultType The result type to use, should be one of: RESULT_JSON, RESULT_ARRAY, RESULT_RESPONSE
      * @return mixed The DataTables data in the requested/default format
      */
     public function getSearchResults($resultType = '')
@@ -805,7 +809,9 @@ class Datatable
     }
 
     /**
-     * @param object A callback function to be used at the end of 'setWhere'
+     * @param object $callback A callback function to be used at the end of 'setWhere'
+     * @return Datatable
+     * @throws \Exception
      */
     public function addWhereBuilderCallback($callback) {
         if (!is_callable($callback)) {

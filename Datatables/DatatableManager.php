@@ -56,8 +56,9 @@ class DatatableManager {
     public function getDatatable($class) {
         $class = $this->getClassName($class);
 
+        $request = $this->container->get('request_stack')->getCurrentRequest();
         $datatable = new Datatable(
-            array_merge($this->container->get('request_stack')->getCurrentRequest()->query->all(), $this->container->get('request_stack')->getCurrentRequest()->request->all()),
+            array_merge($request->query->all(), $request->request->all()),
             $this->doctrine->getRepository($class),
             $this->doctrine->getManager()->getClassMetadata($class),
             $this->doctrine->getManager(),
