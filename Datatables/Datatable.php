@@ -75,9 +75,9 @@ class Datatable
     protected $useDoctrinePaginator = true;
 
     /**
-     * @var boolean Whether to hide the filtered count if using pre-filter callbacks
+     * @var array containing boolean values, whether to hide the callback in filtered count
      */
-    protected $hideFilteredCount = true;
+    protected $hideFilteredCount = [];
 
     /**
      * @var string Whether or not to add DT_RowId to each record
@@ -446,17 +446,6 @@ class Datatable
     }
 
     /**
-     * @param boolean $hideFilteredCount Whether to hide the filtered count if using prefilter callbacks
-     * @return Datatable
-     */
-    public function hideFilteredCount($hideFilteredCount)
-    {
-        $this->hideFilteredCount = (bool) $hideFilteredCount;
-
-        return $this;
-    }
-
-    /**
      * Set the scope of the result set
      *
      * @param QueryBuilder $qb The Doctrine QueryBuilder object
@@ -787,9 +776,11 @@ class Datatable
         $qb = $this->repository->createQueryBuilder($this->tableName)
             ->select('count(' . $this->tableName . '.' . $this->rootEntityIdentifier . ')');
 
-        if (!empty($this->callbacks['WhereBuilder']) && $this->hideFilteredCount)  {
-            foreach ($this->callbacks['WhereBuilder'] as $callback) {
-                $callback($qb);
+        if (!empty($this->callbacks['WhereBuilder']))  {
+            foreach ($this->callbacks['WhereBuilder'] as $key => $callback) {
+                if (true === $this->hideFilteredCount[$key]) {
+                    $callback($qb);
+                }
             }
         }
 
@@ -810,14 +801,16 @@ class Datatable
 
     /**
      * @param object $callback A callback function to be used at the end of 'setWhere'
+     * @param bool $hideFiltered Whether to hide the callback in filtered count
      * @return Datatable
      * @throws \Exception
      */
-    public function addWhereBuilderCallback($callback) {
+    public function addWhereBuilderCallback($callback, $hideFiltered = true) {
         if (!is_callable($callback)) {
             throw new \Exception("The callback argument must be callable.");
         }
         $this->callbacks['WhereBuilder'][] = $callback;
+        $this->hideFilteredCount[] = $hideFiltered;
 
         return $this;
     }
