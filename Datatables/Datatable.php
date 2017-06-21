@@ -683,6 +683,13 @@ class Datatable
                     }
                 }
             }
+
+            // Prepare results with given callbacks
+            if (!empty($this->callbacks['ItemPreperation']))  {
+                foreach ($this->callbacks['ItemPreperation'] as $key => $callback) {
+                    $item = $callback($item);
+                }
+            }
             $data[] = $item;
         }
 
@@ -811,6 +818,22 @@ class Datatable
         }
         $this->callbacks['WhereBuilder'][] = $callback;
         $this->hideFilteredCount[] = $hideFiltered;
+
+        return $this;
+    }
+
+    /**
+     * Add a callback function for preparing a result item before return
+     *
+     * @param object $callback A callback function to be used at the end of result assignment
+     * @return Datatable
+     * @throws \Exception
+     */
+    public function addItemPreperationCallback($callback) {
+        if (!is_callable($callback)) {
+            throw new \Exception("The callback argument must be callable.");
+        }
+        $this->callbacks['ItemPreperation'][] = $callback;
 
         return $this;
     }
