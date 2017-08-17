@@ -649,8 +649,19 @@ class Datatable
                 )
                 ->setHint(constant("\\Gedmo\\Translatable\\TranslatableListener::HINT_FALLBACK"), true);
         }
-        $items = $this->useDoctrinePaginator ?
-            new Paginator($query, $this->doesQueryContainCollections()) : $query->execute();
+
+        if ($this->useDoctrinePaginator) {
+            $paginator = new Paginator($query, $this->doesQueryContainCollections());
+            // if query has collections, use output walker
+            // otherwise an error could occur
+            // "Cannot select distinct identifiers from query on a column from a fetch joined to-many association"
+            if ($this->doesQueryContainCollections()) {
+                $paginator->setUseOutputWalkers(true);
+            }
+            $items = $paginator->getIterator();
+        } else {
+            $items = $query->execute();
+        }
 
         $data = [];
         foreach ($items as $item) {
